@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Lesson
@@ -8,79 +9,108 @@ namespace Lesson
         static void Main(string[] args)
         {
             string messege = "Error";
+            string path = "file.txt";
+
+            DayOfWeek messegeDay = DayOfWeek.Friday;
 
             Pathfinder pathfinder = new Pathfinder();
 
-            ConsoleLogWritter consoleLogWritter = new ConsoleLogWritter();
-            FileLogWritter fileLogWritter = new FileLogWritter();
-            SecureConsoleLogWritter secureConsoleLogWritter = new SecureConsoleLogWritter();
-            SecureFileLogWritter secureFileLogWritter = new SecureFileLogWritter();
-            SecureFileConsoleLogWritter secureFileConsoleLogWritter = new SecureFileConsoleLogWritter();
+            ILogger consoleLogWritter = new ConsoleLogger();
+            ILogger fileLogWritter = new FileLogger(path);
+            ILogger secureConsoleLogWritter = new SecureLogWritter(new ConsoleLogger(), messegeDay);
+            ILogger secureFileLogWritter = new SecureLogWritter(new FileLogger(path), messegeDay);
+            Logger compositeLogger = new Logger(CompositeLogger.Create(new ConsoleLogger(),new SecureLogWritter(new FileLogger(path), messegeDay)));
 
             pathfinder.Find(consoleLogWritter, messege);
             pathfinder.Find(fileLogWritter, messege);
             pathfinder.Find(secureConsoleLogWritter, messege);
             pathfinder.Find(secureFileLogWritter, messege);
-            pathfinder.Find(secureFileConsoleLogWritter, messege);
+            pathfinder.Find(compositeLogger, messege);
+        }
+    }
+    class Logger : ILogger
+    {
+        private ILogger _iLogger;
+
+        public Logger(ILogger iLogger)
+        {
+            _iLogger = iLogger;
+        }
+
+        public void WriteError(string message)
+        {
+            if (message == null)
+                throw new ArgumentNullException();
+
+            _iLogger.WriteError(message);
         }
     }
 
-    class ConsoleLogWritter : ILogger
+    class FileLogger : ILogger
     {
-        public virtual void WriteError(string message)
+        private string _path;
+
+        public FileLogger(string path)
         {
-            if(message == null)
+            _path = path;
+        }
+
+        public void WriteError(string message)
+        {
+            if (message == null)
+                throw new ArgumentNullException();
+
+            File.WriteAllText(_path, message);
+        }
+    }
+
+    class ConsoleLogger : ILogger
+    {
+        public void WriteError(string message)
+        {
+            if (message == null)
                 throw new ArgumentNullException();
 
             Console.WriteLine(message);
         }
     }
 
-    class FileLogWritter : ILogger
+    class SecureLogWritter : ILogger
     {
-        public virtual void WriteError(string message)
-        {
-            if (message == null)
-                throw new ArgumentNullException();
+        private ILogger _iLogger;
+        private DayOfWeek _messegeDay;
 
-            File.WriteAllText("log.txt", message);
+        public SecureLogWritter(ILogger iLogger, DayOfWeek messegeDay)
+        {
+            _iLogger = iLogger;
+            _messegeDay = messegeDay;
+        }
+
+        public void WriteError(string message)
+        {
+            if (DateTime.Now.DayOfWeek == _messegeDay)
+                _iLogger.WriteError(message);
         }
     }
 
-    class SecureConsoleLogWritter : ConsoleLogWritter
+    class CompositeLogger : ILogger
     {
-        public override void WriteError(string message)
+        private IEnumerable<ILogger> _iLoggers;
+
+        public CompositeLogger(IEnumerable<ILogger> iLoggers)
         {
-            if (DateTime.Now.DayOfWeek == DayOfWeek.Friday)
-                base.WriteError(message);
+            _iLoggers = iLoggers;
         }
-    }
 
-    class SecureFileLogWritter : FileLogWritter
-    {
-        public override void WriteError(string message)
+        public void WriteError(string message)
         {
-            if (DateTime.Now.DayOfWeek == DayOfWeek.Friday)
-                base.WriteError(message);
+            foreach(ILogger logger in _iLoggers)
+                logger.WriteError(message);
         }
-    }
 
-    class SecureFileConsoleLogWritter : SecureFileLogWritter
-    {
-        public override void WriteError(string message)
+        public static CompositeLogger Create(params ILogger[] loggers)
         {
-            
-            if (DateTime.Now.DayOfWeek == DayOfWeek.Friday)
-            {
-                base.WriteError(message);
-            }
-            else
-            {
-                if (message == null)
-                    throw new ArgumentNullException();
-
-                Console.WriteLine(message);
-            }
+            return new CompositeLogger(loggers);
         }
     }
 
@@ -94,7 +124,7 @@ namespace Lesson
         public void Find(ILogger logger, string messege)
         {
             if (logger == null)
-                throw ArgumentNullException();
+                throw new ArgumentNullException();
 
             if (messege == null)
                 throw new ArgumentNullException();
