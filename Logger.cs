@@ -29,6 +29,9 @@ namespace Lesson
     {
         public virtual void WriteError(string message)
         {
+            if(message == null)
+                throw new ArgumentNullException();
+
             Console.WriteLine(message);
         }
     }
@@ -37,6 +40,9 @@ namespace Lesson
     {
         public virtual void WriteError(string message)
         {
+            if (message == null)
+                throw new ArgumentNullException();
+
             File.WriteAllText("log.txt", message);
         }
     }
@@ -63,10 +69,18 @@ namespace Lesson
     {
         public override void WriteError(string message)
         {
+            
             if (DateTime.Now.DayOfWeek == DayOfWeek.Friday)
+            {
                 base.WriteError(message);
+            }
             else
+            {
+                if (message == null)
+                    throw new ArgumentNullException();
+
                 Console.WriteLine(message);
+            }
         }
     }
 
@@ -79,6 +93,12 @@ namespace Lesson
     {
         public void Find(ILogger logger, string messege)
         {
+            if (logger == null)
+                throw ArgumentNullException();
+
+            if (messege == null)
+                throw new ArgumentNullException();
+
             logger.WriteError(messege);
         }
     }
